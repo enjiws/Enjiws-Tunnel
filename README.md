@@ -2,6 +2,11 @@
 
 Native Android tunneling client focused on stability, efficient throughput, and battery-conscious operation.
 
+## V0.3 scope
+- Profile manager with Android Storage Access Framework import for `.hc` files.
+- Imported files are stored unchanged in app-private storage, with SHA-256 fingerprint and metadata.
+- The current importer treats HTTP Custom files as opaque artifacts. It does not decrypt undocumented formats or expose credentials; imported files are not connectable until a documented/authorized format mapping is implemented.
+
 ## V0.2 scope
 - `EnjiwsVpnService`: foreground VpnService, TUN via `Builder.establish()`, event-driven network tracking (`NetworkCallback`, tanpa polling), reconnect dengan exponential backoff + jitter, restart otomatis saat Wi-Fi/seluler berganti.
 - `TunnelEngine`: titik colok engine (SSH/HTTP/TLS + tun2socks). Saat ini `IdleEngine` (placeholder).

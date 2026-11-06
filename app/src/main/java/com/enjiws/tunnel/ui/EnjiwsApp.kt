@@ -143,11 +143,7 @@ fun EnjiwsApp() {
     ) { padding ->
         when (tab) {
             0 -> HomeScreen(state, onToggle, Modifier.padding(padding))
-            1 -> PlaceholderScreen(
-                "Profiles",
-                "Saved SSH, HTTP and TLS profiles will show up here.",
-                Modifier.padding(padding)
-            )
+            1 -> ProfileScreen(Modifier.padding(padding))
             else -> PlaceholderScreen(
                 "Settings",
                 "DNS, routing and battery options will live here.",
