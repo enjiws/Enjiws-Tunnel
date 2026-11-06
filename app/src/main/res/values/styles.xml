@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.EnjiwsTunnel" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowBackground">#0A0A0B</item>
+        <item name="android:statusBarColor">#0A0A0B</item>
+        <item name="android:navigationBarColor">#131315</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
