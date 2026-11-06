@@ -19,6 +19,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.enjiws.tunnel.MainActivity
 import com.enjiws.tunnel.R
+import com.enjiws.tunnel.data.ProfileStore
+import com.enjiws.tunnel.engine.SshTunnelEngine
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +45,6 @@ class EnjiwsVpnService : VpnService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var sessionJob: Job? = null
     private var notificationJob: Job? = null
-    private val engine: TunnelEngine = IdleEngine()
 
     private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
     private val networks = LinkedHashMap<Network, NetworkKind>()
@@ -100,6 +101,10 @@ class EnjiwsVpnService : VpnService() {
     private fun startTunnel() {
         if (sessionJob?.isActive == true) return
         promoteToForeground()
+        if (ProfileStore.get(this).load() == null) {
+            stopTunnel() // tidak ada profil: jangan buat TUN sama sekali
+            return
+        }
         registerNetworkCallback()
         TunnelStateHolder.update { TunnelState(status = Status.CONNECTING) }
 
@@ -131,19 +136,34 @@ class EnjiwsVpnService : VpnService() {
             val net = awaitNetwork()
             var tun: ParcelFileDescriptor? = null
             var upSince = 0L
+            val engine: TunnelEngine = SshTunnelEngine(this)
             try {
-                tun = buildTun(net)
-                upSince = SystemClock.elapsedRealtime()
-                TunnelStateHolder.update {
-                    it.copy(
-                        status = Status.CONNECTED,
-                        connectedSince = System.currentTimeMillis(),
-                        attempt = 0,
-                        message = null
-                    )
+                coroutineScope {
+                    val work = launch {
+                        engine.connect() // handshake dulu, TUN belum dibuat
+                        tun = buildTun(net, engine.dnsServer)
+                        upSince = SystemClock.elapsedRealtime()
+                        TunnelStateHolder.update {
+                            it.copy(
+                                status = Status.CONNECTED,
+                                connectedSince = System.currentTimeMillis(),
+                                attempt = 0,
+                                message = null
+                            )
+                        }
+                        engine.run(tun!!)
+                    }
+                    val watcher = launch {
+                        currentNet.first { it?.network != net.network }
+                        work.cancel()
+                    }
+                    work.join()
+                    if (watcher.isActive) {
+                        watcher.cancel()
+                        error("Tunnel stopped unexpectedly")
+                    }
                 }
-                runEngine(tun, net)
-                attempt = 0 // keluar normal = jaringan berganti, sambung ulang langsung
+                attempt = 0 // jaringan berganti: sambung ulang langsung
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -160,22 +180,9 @@ class EnjiwsVpnService : VpnService() {
                 }
                 delay(backoffMillis(attempt))
             } finally {
+                runCatching { engine.close() }
                 runCatching { tun?.close() }
             }
-        }
-    }
-
-    /** Jalankan engine; berhenti (return normal) kalau jaringan aktif berganti, lempar error kalau engine mati sendiri. */
-    private suspend fun runEngine(tun: ParcelFileDescriptor, net: ActiveNet) = coroutineScope {
-        val engineJob = launch { engine.run(tun) }
-        val watcher = launch {
-            currentNet.first { it?.network != net.network }
-            engineJob.cancel()
-        }
-        engineJob.join()
-        if (watcher.isActive) {
-            watcher.cancel()
-            error("Tunnel engine stopped unexpectedly")
         }
     }
 
@@ -191,21 +198,19 @@ class EnjiwsVpnService : VpnService() {
         }
     }
 
-    private fun buildTun(net: ActiveNet): ParcelFileDescriptor {
+    private fun buildTun(net: ActiveNet, dns: String): ParcelFileDescriptor {
         val b = Builder()
             .setSession("Enjiws Tunnel")
             .setMtu(TunnelConfig.MTU)
-            .addAddress("10.255.0.1", 24)
-            .setBlocking(true)
+            .addAddress(TunnelConfig.TUN_IPV4, 24)
+            .addAddress("fd00:e17::1", 126)
+            .addRoute("0.0.0.0", 0)
+            .addRoute("::", 0) // IPv6 ikut masuk TUN (dibuang) supaya tidak bocor
+            .addDnsServer(dns)
+            .setBlocking(false)
             .setUnderlyingNetworks(arrayOf(net.network))
 
-        if (TunnelConfig.CAPTURE_ALL_TRAFFIC) {
-            b.addRoute("0.0.0.0", 0)
-            b.addDnsServer("1.1.1.1")
-        } else {
-            b.addRoute("10.255.0.0", 24)
-        }
-        // Socket milik app ini tidak masuk TUN sendiri (anti routing loop untuk engine nanti).
+        // Socket app ini (SSH ke server) tidak boleh masuk TUN sendiri.
         runCatching { b.addDisallowedApplication(packageName) }
 
         return b.establish() ?: error("VPN permission revoked or establish() failed")

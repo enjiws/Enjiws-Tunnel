@@ -1,31 +1,23 @@
 package com.enjiws.tunnel.vpn
 
 import android.os.ParcelFileDescriptor
-import kotlinx.coroutines.awaitCancellation
 
 object TunnelConfig {
     const val MTU = 1400
-
-    /**
-     * false = TUN hanya punya rute test privat (10.255.0.0/24), internet normal TIDAK terganggu.
-     * Ubah ke true HANYA setelah engine asli (SSH/HTTP + tun2socks) terpasang,
-     * kalau tidak semua traffic HP akan masuk TUN dan terbuang.
-     */
-    const val CAPTURE_ALL_TRAFFIC = false
+    const val TUN_IPV4 = "10.255.0.1"
 }
 
 /**
- * Titik colok engine tunnel. run() harus suspend selama tunnel hidup,
- * lempar exception kalau gagal (service akan reconnect dengan backoff),
- * dan patuh pada cancellation.
+ * Siklus satu sesi:
+ *  1. connect()  : bangun koneksi ke server SEBELUM TUN dibuat (tidak ada blackhole saat handshake)
+ *  2. run(tun)   : teruskan traffic sampai gagal / dibatalkan
+ *  3. close()    : bersihkan semuanya (aman dipanggil berkali-kali)
  */
-interface TunnelEngine {
-    suspend fun run(tun: ParcelFileDescriptor)
-}
+interface TunnelEngine : AutoCloseable {
+    /** DNS yang dipakai VPN; tersedia setelah connect(). */
+    val dnsServer: String
 
-/** Placeholder: tidak membaca paket, tidak memakai CPU, hanya menahan sesi tetap hidup. */
-class IdleEngine : TunnelEngine {
-    override suspend fun run(tun: ParcelFileDescriptor) {
-        awaitCancellation()
-    }
+    suspend fun connect()
+    suspend fun run(tun: ParcelFileDescriptor)
+    override fun close()
 }

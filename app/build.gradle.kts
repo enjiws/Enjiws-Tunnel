@@ -14,6 +14,28 @@ android {
         targetSdk = 35
         versionCode = 3
         versionName = "0.3.0"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+    }
+
+    // tun2socks (hev-socks5-tunnel) dibangun dari source lewat ndk-build
+    externalNativeBuild {
+        ndkBuild {
+            path = file("src/main/jni/Android.mk")
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
+                "META-INF/{AL2.0,LGPL2.1}",
+                "META-INF/DEPENDENCIES",
+                "META-INF/INDEX.LIST"
+            )
+        }
     }
 
     buildTypes {
@@ -54,6 +76,11 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("com.hierynomus:sshj:0.39.0")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.slf4j:slf4j-nop:2.0.13")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

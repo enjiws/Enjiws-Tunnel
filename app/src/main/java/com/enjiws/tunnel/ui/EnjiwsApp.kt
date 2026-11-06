@@ -69,6 +69,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import com.enjiws.tunnel.data.ProfileStore
 import com.enjiws.tunnel.vpn.EnjiwsVpnService
 import com.enjiws.tunnel.vpn.NetworkKind
 import com.enjiws.tunnel.vpn.Status
@@ -99,8 +100,12 @@ fun EnjiwsApp() {
         ActivityResultContracts.RequestPermission()
     ) { prepareAndStart() }
 
-    val onToggle = {
+    val onToggle: () -> Unit = onToggle@{
         if (state.status == Status.DISCONNECTED) {
+            if (ProfileStore.get(context).load() == null) {
+                tab = 1 // belum ada profil: arahkan ke tab Profile
+                return@onToggle
+            }
             val needNotif = Build.VERSION.SDK_INT >= 33 &&
                 ContextCompat.checkSelfPermission(
                     context, Manifest.permission.POST_NOTIFICATIONS
@@ -155,6 +160,7 @@ fun EnjiwsApp() {
 
 @Composable
 private fun HomeScreen(state: TunnelState, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -217,6 +223,16 @@ private fun HomeScreen(state: TunnelState, onToggle: () -> Unit, modifier: Modif
             MetricCard("Uptime", uptime, Modifier.weight(1f))
         }
 
+        val summary = remember(state.status) {
+            ProfileStore.get(context).load()?.let { p ->
+                val via = buildString {
+                    if (p.tlsEnabled) append("TLS")
+                    if (p.payload.isNotBlank()) append(if (isEmpty()) "Payload" else " + Payload")
+                    if (isEmpty()) append("SSH")
+                }
+                "${p.host}:${p.port} · $via"
+            }
+        }
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
@@ -224,12 +240,11 @@ private fun HomeScreen(state: TunnelState, onToggle: () -> Unit, modifier: Modif
         ) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    "Test mode", color = EnjiwsColors.RedGlow,
+                    "Server", color = EnjiwsColors.RedGlow,
                     fontWeight = FontWeight.Bold, fontSize = 14.sp
                 )
                 Text(
-                    "The tunnel interface comes up on a private test route, so your normal " +
-                        "internet is not touched yet. SSH and HTTP engines plug in next.",
+                    summary ?: "No profile yet. Open the Profiles tab to add one.",
                     color = EnjiwsColors.Grey, fontSize = 13.sp, lineHeight = 19.sp
                 )
             }
