@@ -1,10 +1,14 @@
 package com.enjiws.tunnel.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,16 +16,22 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +43,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.enjiws.tunnel.data.Profile
 import com.enjiws.tunnel.data.ProfileStore
+import com.enjiws.tunnel.profiles.ImportedProfile
+import com.enjiws.tunnel.profiles.ProfileStore as HcProfileStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ProfileScreen(modifier: Modifier = Modifier) {
@@ -52,6 +67,31 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
     var proxyPort by remember { mutableStateOf(initial.proxyPort.toString()) }
     var dns by remember { mutableStateOf(initial.dns) }
     var info by remember { mutableStateOf<String?>(null) }
+
+    // Import .hc (arsip): file disimpan utuh, belum bisa dipakai koneksi.
+    val scope = rememberCoroutineScope()
+    val imports = remember { mutableStateListOf<ImportedProfile>() }
+    var hcMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        val saved = withContext(Dispatchers.IO) { HcProfileStore.all(context) }
+        imports.clear(); imports.addAll(saved)
+    }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = runCatching {
+                    withContext(Dispatchers.IO) { HcProfileStore.importHc(context, uri) }
+                }
+                result.onSuccess {
+                    imports.removeAll { old -> old.id == it.id }
+                    imports.add(0, it)
+                    hcMessage = "File disimpan. Format .hc masih perlu decoder kompatibel sebelum bisa dipakai koneksi."
+                }.onFailure { hcMessage = it.message ?: "Import gagal" }
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -125,6 +165,47 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
             ) { Text("Reset host key", color = EnjiwsColors.GreyLight) }
         }
         info?.let { Text(it, color = EnjiwsColors.Grey, fontSize = 13.sp) }
+
+        // ---- Import HTTP Custom (.hc): arsip, belum bisa dipakai koneksi ----
+        Spacer(Modifier.height(12.dp))
+        Text("Import HTTP Custom (.hc)", color = EnjiwsColors.Text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "File .hc disimpan utuh sebagai arsip (formatnya terenkripsi/tidak terdokumentasi, belum bisa dipakai koneksi).",
+            color = EnjiwsColors.Grey, fontSize = 13.sp
+        )
+        Button(
+            onClick = { picker.launch(arrayOf("*/*")) },
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = EnjiwsColors.Red),
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Import file .hc") }
+        hcMessage?.let { Text(it, color = EnjiwsColors.RedGlow, fontSize = 12.sp) }
+        if (imports.isEmpty()) {
+            Text("Belum ada file konfigurasi yang diimpor.", color = EnjiwsColors.Grey, fontSize = 13.sp)
+        }
+        imports.forEach { imported ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = EnjiwsColors.Panel)
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(imported.name, color = EnjiwsColors.Text, fontSize = 15.sp)
+                    Text("HTTP Custom · file tersimpan", color = EnjiwsColors.RedGlow, fontSize = 12.sp)
+                    Text("${imported.sizeBytes} bytes · SHA-256 ${imported.sha256.take(16)}…", color = EnjiwsColors.Grey, fontSize = 11.sp)
+                    Text("Belum dapat dijalankan: format internal .hc belum dipetakan ke profil Enjiws.", color = EnjiwsColors.Grey, fontSize = 12.sp)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = {
+                            scope.launch {
+                                withContext(Dispatchers.IO) { HcProfileStore.delete(context, imported) }
+                                imports.remove(imported)
+                            }
+                        }) { Text("Hapus", color = EnjiwsColors.RedGlow) }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text("Catatan: file .hc disimpan apa adanya di penyimpanan privat aplikasi. Enjiws tidak mengekstrak password, key, atau data server dari format terenkripsi/tidak terdokumentasi.", color = EnjiwsColors.Grey, fontSize = 12.sp)
     }
 }
 
