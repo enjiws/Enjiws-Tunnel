@@ -40,14 +40,23 @@ class SshEngine(
         upstream.close()
     }
 
+    /**
+     * Autentikasi SSH + buka satu channel direct-tcpip percobaan.
+     * Dipanggil service SEBELUM TUN dibuat: gagal di sini berarti status tidak
+     * pernah jadi CONNECTED. Channel percobaan membuktikan server mengizinkan
+     * TCP forwarding (AllowTcpForwarding) — auth saja tidak cukup.
+     */
+    override suspend fun connect() = withContext(Dispatchers.IO) {
+        raw.warmUp()
+        raw.openStream("1.1.1.1", 80).close()
+    }
+
     override suspend fun run(tun: ParcelFileDescriptor) {
         val tunIn = FileInputStream(tun.fileDescriptor)
         val tunOut = FileOutputStream(tun.fileDescriptor)
         val forwarder = TcpForwarder(tunIn, tunOut, upstream, DnsRelay(upstream))
         try {
-            // Fail fast: kalau SSH tidak bisa konek, lempar error supaya service
-            // langsung masuk mode reconnect (backoff), bukan pura-pura CONNECTED.
-            withContext(Dispatchers.IO) { raw.warmUp() }
+            // connect() sudah membuktikan auth + channel sebelum TUN dibuat.
             forwarder.start()
             awaitCancellation()
         } finally {

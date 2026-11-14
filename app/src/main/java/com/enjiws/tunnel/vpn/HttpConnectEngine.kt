@@ -29,13 +29,20 @@ class HttpConnectEngine(private val profile: TunnelProfile) : TunnelEngine {
         upstream.close()
     }
 
+    /**
+     * Pastikan proxy menjawab CONNECT (termasuk auth bila ada) sebelum TUN dibuat.
+     * Dipanggil service sebelum buildTun; gagal di sini = tidak pernah CONNECTED.
+     */
+    override suspend fun connect() = withContext(Dispatchers.IO) {
+        raw.warmUp()
+    }
+
     override suspend fun run(tun: ParcelFileDescriptor) {
         val tunIn = FileInputStream(tun.fileDescriptor)
         val tunOut = FileOutputStream(tun.fileDescriptor)
         val forwarder = TcpForwarder(tunIn, tunOut, upstream, DnsRelay(upstream))
         try {
-            // Fail fast: pastikan proxy menjawab CONNECT sebelum klaim CONNECTED.
-            withContext(Dispatchers.IO) { raw.warmUp() }
+            // connect() sudah membuktikan proxy menjawab sebelum TUN dibuat.
             forwarder.start()
             awaitCancellation()
         } finally {

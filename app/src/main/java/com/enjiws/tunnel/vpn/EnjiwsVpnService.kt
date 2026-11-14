@@ -192,6 +192,10 @@ class EnjiwsVpnService : VpnService() {
                         "Menyambung ke ${profile.name} (${profile.type.name} ${profile.host}:${profile.port}) lewat ${net.kind}"
                     else "Mode test: tidak ada profil aktif"
                 )
+                // Autentikasi + warmUp SEBELUM TUN dibuat: gagal di sini berarti
+                // status tidak pernah jadi CONNECTED (langsung backoff/reconnect).
+                // (IdleEngine: connect() no-op, mode test.)
+                engine.connect()
                 tun = buildTun(net, engine, profile)
                 upSince = SystemClock.elapsedRealtime()
                 TunnelStateHolder.update {

@@ -27,7 +27,11 @@ interface TunnelEngine : AutoCloseable {
     /** DNS yang dipakai VPN; tersedia setelah connect(). */
     val dnsServer: String
 
-    /** Default kosong: engine baru menyambung di dalam run(). */
+    /**
+     * Autentikasi + warmUp (buka satu channel percobaan). Service WAJIB memanggil
+     * ini sebelum TUN dibuat; gagal = status tidak pernah CONNECTED. Default kosong
+     * untuk engine yang tidak perlu autentikasi (IdleEngine).
+     */
     suspend fun connect() {}
 
     suspend fun run(tun: ParcelFileDescriptor)
