@@ -67,6 +67,7 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
     var proxyPort by remember { mutableStateOf(initial.proxyPort.toString()) }
     var dns by remember { mutableStateOf(initial.dns) }
     var info by remember { mutableStateOf<String?>(null) }
+    var showGenerator by remember { mutableStateOf(false) }
 
     // Import .hc (arsip): file disimpan utuh, belum bisa dipakai koneksi.
     val scope = rememberCoroutineScope()
@@ -125,6 +126,23 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
             "Payload (optional)", payload, { payload = it },
             minLines = 3, hint = "GET / HTTP/1.1[crlf]Host: example.com[crlf]Upgrade: websocket[crlf][crlf]"
         )
+        OutlinedButton(
+            onClick = { showGenerator = !showGenerator },
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) { Text(if (showGenerator) "Tutup Payload Generator" else "Buka Payload Generator", color = EnjiwsColors.GreyLight) }
+        if (showGenerator) {
+            PayloadGenerator(
+                host = host,
+                port = port.toIntOrNull() ?: 22,
+                initialPayload = payload,
+                onUse = {
+                    payload = it
+                    showGenerator = false
+                    info = "Payload dibuat dari generator — tekan Save untuk menyimpan."
+                }
+            )
+        }
         Field("DNS server", dns, { dns = it }, KeyboardType.Uri)
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
