@@ -200,12 +200,20 @@ class HostKeyStore(context: Context) : HostKeyRepository {
     }
 
     override fun add(hostkey: HostKey, userinfo: UserInfo?) {
+        // jcraft: HostKey.key adalah String Base64 dari blob kunci — simpan apa adanya;
+        // check() men-decode-nya kembali dan membandingkan byte mentah.
         prefs.edit()
-            .putString(keyOf(hostkey.host), Base64.encodeToString(hostkey.key, Base64.NO_WRAP))
+            .putString(keyOf(hostkey.host), hostkey.key)
             .apply()
     }
 
-    override fun remove(host: String, key: ByteArray?) {
+    // jcraft hanya punya remove(host, type) dan remove(host, type, key).
+    // Penyimpanan ini keyed by host saja, jadi keduanya menghapus entri host.
+    override fun remove(host: String, type: String) {
+        prefs.edit().remove(keyOf(host)).apply()
+    }
+
+    override fun remove(host: String, type: String, key: ByteArray) {
         prefs.edit().remove(keyOf(host)).apply()
     }
 
@@ -222,10 +230,6 @@ class HostKeyStore(context: Context) : HostKeyRepository {
 
     override fun getHostKey(host: String, type: String): Array<HostKey> =
         getHostKey().filter { it.host == host }.toTypedArray()
-
-    override fun setKnownHosts(filename: String) {
-        // tidak dipakai: kunci disimpan di SharedPreferences, bukan file
-    }
 
     private fun keyOf(host: String) = "hk_$host"
 
