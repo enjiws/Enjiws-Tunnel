@@ -79,6 +79,7 @@ dependencies {
 
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("com.hierynomus:sshj:0.39.0")
+    implementation("com.github.mwiede:jsch:0.2.21")
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("org.slf4j:slf4j-nop:2.0.13")
 

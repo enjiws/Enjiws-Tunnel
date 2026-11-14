@@ -21,6 +21,7 @@ import java.net.Socket
  */
 class HttpConnectEngine(private val profile: TunnelProfile) : TunnelEngine {
     override val capturesTraffic = true
+    override val dnsServer: String get() = profile.dns
     private val raw = HttpUpstream(profile)
     private val upstream: Upstream = CountingUpstream(raw)
 
