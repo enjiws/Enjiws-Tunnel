@@ -14,7 +14,9 @@ data class TunnelState(
     val connectedSince: Long = 0L,
     val network: NetworkKind = NetworkKind.NONE,
     val attempt: Int = 0,
-    val message: String? = null
+    val message: String? = null,
+    val profileName: String? = null,
+    val autoStopAt: Long = 0L
 )
 
 /** Single source of truth untuk UI. Service menulis, UI hanya membaca. */
