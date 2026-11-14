@@ -46,9 +46,14 @@ class SshEngine(
      * pernah jadi CONNECTED. Channel percobaan membuktikan server mengizinkan
      * TCP forwarding (AllowTcpForwarding) — auth saja tidak cukup.
      */
-    override suspend fun connect() = withContext(Dispatchers.IO) {
-        raw.warmUp()
-        raw.openStream("1.1.1.1", 80).close()
+    override suspend fun connect() {
+        // Body blok (bukan `= withContext`), karena TunnelStream.close()
+        // mengembalikan Result<Unit>, bukan Unit — bentuk `=` akan mengubah
+        // tipe kembalian connect() dan gagal compile.
+        withContext(Dispatchers.IO) {
+            raw.warmUp()
+            raw.openStream("1.1.1.1", 80).close()
+        }
     }
 
     override suspend fun run(tun: ParcelFileDescriptor) {
