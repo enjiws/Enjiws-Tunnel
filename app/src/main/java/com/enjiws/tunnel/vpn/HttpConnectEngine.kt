@@ -25,6 +25,10 @@ class HttpConnectEngine(private val profile: TunnelProfile) : TunnelEngine {
     private val raw = HttpUpstream(profile)
     private val upstream: Upstream = CountingUpstream(raw)
 
+    override fun close() {
+        upstream.close()
+    }
+
     override suspend fun run(tun: ParcelFileDescriptor) {
         val tunIn = FileInputStream(tun.fileDescriptor)
         val tunOut = FileOutputStream(tun.fileDescriptor)

@@ -1,6 +1,6 @@
 package com.enjiws.tunnel.vpn
 
-import com.github.mwiede.jsch.SocketFactory as JschSocketFactory
+import com.jcraft.jsch.SocketFactory as JschSocketFactory
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetSocketAddress

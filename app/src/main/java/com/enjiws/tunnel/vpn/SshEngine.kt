@@ -5,12 +5,12 @@ import android.os.ParcelFileDescriptor
 import android.util.Base64
 import android.util.Log
 import com.enjiws.tunnel.profiles.TunnelProfile
-import com.github.mwiede.jsch.ChannelDirectTCPIP
-import com.github.mwiede.jsch.HostKey
-import com.github.mwiede.jsch.HostKeyRepository
-import com.github.mwiede.jsch.JSch
-import com.github.mwiede.jsch.Session
-import com.github.mwiede.jsch.UserInfo
+import com.jcraft.jsch.ChannelDirectTCPIP
+import com.jcraft.jsch.HostKey
+import com.jcraft.jsch.HostKeyRepository
+import com.jcraft.jsch.JSch
+import com.jcraft.jsch.Session
+import com.jcraft.jsch.UserInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.withContext
@@ -35,6 +35,10 @@ class SshEngine(
     override val dnsServer: String get() = profile.dns
     private val raw = SshUpstream(context, profile)
     private val upstream: Upstream = CountingUpstream(raw)
+
+    override fun close() {
+        upstream.close()
+    }
 
     override suspend fun run(tun: ParcelFileDescriptor) {
         val tunIn = FileInputStream(tun.fileDescriptor)
