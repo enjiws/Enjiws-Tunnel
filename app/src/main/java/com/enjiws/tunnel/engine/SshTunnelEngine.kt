@@ -44,7 +44,15 @@ class SshTunnelEngine(context: Context) : TunnelEngine {
         dnsServer = profile.dns
         val ssh = openSsh(profile)
 
-        val server = SocksServer { host, port -> SshRemoteConn(ssh.newDirectConnection(host, port)) }
+        val udpConfig = if (profile.udpEnabled) {
+            UdpConfig(profile.udpRelayHost, profile.udpRelayPort)
+        } else {
+            null
+        }
+        val server = SocksServer(
+            dialer = { host, port -> SshRemoteConn(ssh.newDirectConnection(host, port)) },
+            udpConfig = udpConfig
+        )
         server.start()
         socks = server
         Unit

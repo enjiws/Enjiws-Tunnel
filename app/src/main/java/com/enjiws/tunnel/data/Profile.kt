@@ -18,7 +18,10 @@ data class Profile(
     val payload: String = "",
     val proxyHost: String = "",
     val proxyPort: Int = 8080,
-    val dns: String = "1.1.1.1"
+    val dns: String = "1.1.1.1",
+    val udpEnabled: Boolean = false,
+    val udpRelayHost: String = "127.0.0.1",
+    val udpRelayPort: Int = 7300
 ) {
     val isValid: Boolean
         get() = host.isNotBlank() && username.isNotBlank() && port in 1..65535
@@ -29,6 +32,7 @@ data class Profile(
         put("tlsEnabled", tlsEnabled); put("sni", sni); put("tlsInsecure", tlsInsecure)
         put("payload", payload); put("proxyHost", proxyHost); put("proxyPort", proxyPort)
         put("dns", dns)
+        put("udpEnabled", udpEnabled); put("udpRelayHost", udpRelayHost); put("udpRelayPort", udpRelayPort)
     }.toString()
 
     companion object {
@@ -45,7 +49,10 @@ data class Profile(
                 payload = o.optString("payload"),
                 proxyHost = o.optString("proxyHost"),
                 proxyPort = o.optInt("proxyPort", 8080),
-                dns = o.optString("dns", "1.1.1.1").ifBlank { "1.1.1.1" }
+                dns = o.optString("dns", "1.1.1.1").ifBlank { "1.1.1.1" },
+                udpEnabled = o.optBoolean("udpEnabled"),
+                udpRelayHost = o.optString("udpRelayHost", "127.0.0.1").ifBlank { "127.0.0.1" },
+                udpRelayPort = o.optInt("udpRelayPort", 7300)
             )
         }
     }

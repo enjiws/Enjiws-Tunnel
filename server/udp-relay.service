@@ -1,0 +1,20 @@
+# EnjiwsTunnel UDP-over-TCP relay — contoh unit systemd.
+# Sesuaikan User dan path dengan VPS-mu, lalu:
+#   sudo cp udp-relay.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now udp-relay
+#   sudo systemctl status udp-relay
+[Unit]
+Description=EnjiwsTunnel UDP-over-TCP relay
+After=network.target
+
+[Service]
+Type=simple
+User=agentuser
+WorkingDirectory=/home/agentuser/enjiws-tunnel
+ExecStart=/usr/bin/python3 /home/agentuser/enjiws-tunnel/udp-relay.py --host 127.0.0.1 --port 7300
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

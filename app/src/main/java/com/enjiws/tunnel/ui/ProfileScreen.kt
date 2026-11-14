@@ -66,6 +66,9 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
     var proxyHost by remember { mutableStateOf(initial.proxyHost) }
     var proxyPort by remember { mutableStateOf(initial.proxyPort.toString()) }
     var dns by remember { mutableStateOf(initial.dns) }
+    var udpEnabled by remember { mutableStateOf(initial.udpEnabled) }
+    var udpRelayHost by remember { mutableStateOf(initial.udpRelayHost) }
+    var udpRelayPort by remember { mutableStateOf(initial.udpRelayPort.toString()) }
     var info by remember { mutableStateOf<String?>(null) }
     var showGenerator by remember { mutableStateOf(false) }
 
@@ -145,6 +148,16 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
         }
         Field("DNS server", dns, { dns = it }, KeyboardType.Uri)
 
+        SwitchRow("UDP forwarding (game/voice/QUIC)", udpEnabled) { udpEnabled = it }
+        if (udpEnabled) {
+            Field("Relay host (di server SSH)", udpRelayHost, { udpRelayHost = it }, KeyboardType.Uri)
+            Field("Relay port", udpRelayPort, { udpRelayPort = it.filter(Char::isDigit) }, KeyboardType.Number)
+            Text(
+                "Butuh relay UDP di VPS (server/udp-relay.py). Tanpa relay, UDP non-DNS tetap dibuang.",
+                color = EnjiwsColors.Grey, fontSize = 13.sp
+            )
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             Button(
                 onClick = {
@@ -159,7 +172,10 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
                         payload = payload,
                         proxyHost = proxyHost.trim(),
                         proxyPort = proxyPort.toIntOrNull() ?: 8080,
-                        dns = dns.trim().ifBlank { "1.1.1.1" }
+                        dns = dns.trim().ifBlank { "1.1.1.1" },
+                        udpEnabled = udpEnabled,
+                        udpRelayHost = udpRelayHost.trim().ifBlank { "127.0.0.1" },
+                        udpRelayPort = udpRelayPort.toIntOrNull() ?: 7300
                     )
                     if (p.isValid) {
                         store.save(p)
